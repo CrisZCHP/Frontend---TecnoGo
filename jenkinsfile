@@ -1,29 +1,58 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "TecnoGo-frontend:${env.BUILD_ID}"
+    }
+
     stages {
-        stage('Clonar código') {
+        stage('Checkout') {
             steps {
-                echo 'Clonando repositorio...'
+                // Jenkins debe estar configurado para clonar la rama 'master'
+                checkout scm
             }
         }
 
-        stage('Instalar dependencias') {
+        stage('Install & Build') {
             steps {
+                // Tu Next.js está en la raíz del repo
                 sh 'npm install'
-            }
-        }
-
-        stage('Build') {
-            steps {
                 sh 'npm run build'
             }
         }
 
-        stage('Pruebas') {
+        stage('Test') {
             steps {
-                sh 'npm test || echo "Sin pruebas definidas"'
+                sh 'echo "No hay tests aún"'
             }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                // Construye la imagen localmente en Docker Desktop
+                sh "docker build -t ${IMAGE_NAME} ."
+            }
+        }
+
+        stage('Deploy Locally') {
+            steps {
+                // Para reemplazar el contenedor anterior y levantar el nuevo
+                sh """
+                   docker rm -f mi-frontend || true
+                   docker run -d \
+                     --name mi-frontend \
+                     -p 3000:3000 \
+                     ${IMAGE_NAME}
+                """
+            }
+        }
+    }
+
+    post {
+        always {
+            // Limpia workspace y libera imágenes dangling
+            cleanWs()
+            sh 'docker image prune -f'
         }
     }
 }
